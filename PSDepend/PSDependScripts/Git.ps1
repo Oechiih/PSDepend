@@ -68,8 +68,10 @@ param(
     [string[]]$PSDependAction = @('Install'),
 
     [string]$ImportPath,
-    
-    [bool]$ExtractProject = $False
+
+    [bool]$ExtractProject = $False,
+
+    [Int]$Depth = $null
 )
 
 # Extract data from Dependency
@@ -166,13 +168,21 @@ if($GottaInstall -and !$ExtractProject)
 {
     Push-Location
     Set-Location $Target
-    Write-Verbose -Message "Cloning dependency [$Name] with git from [$($Target)]"
-    Invoke-ExternalCommand git 'clone', $Name
+    if($Depth)
+    {
+        Write-Verbose -Message "Shallow cloning dependency [$Name] with git from [$($Target)]. Checking out branch $($Version) with a depth of $($Depth)"
+        Invoke-ExternalCommand git 'clone', $Name, '--depth', $Depth, '--branch', $Version
+    }
+    else
+    {
+        Write-Verbose -Message "Cloning dependency [$Name] with git from [$($Target)]"
+        Invoke-ExternalCommand git 'clone', $Name
 
-    #TODO: Should we do a fetch, once existing repo is found?
-    Set-Location $RepoPath
-    Write-Verbose -Message "Checking out [$Version] of [$Name] from [$RepoPath]"
-    Invoke-ExternalCommand git 'checkout', $Version
+        #TODO: Should we do a fetch, once existing repo is found?
+        Set-Location $RepoPath
+        Write-Verbose -Message "Checking out [$Version] of [$Name] from [$RepoPath]"
+        Invoke-ExternalCommand git 'checkout', $Version
+    }
     Pop-Location
 }
 elseif($GottaInstall -and $ExtractProject) {
@@ -181,7 +191,7 @@ elseif($GottaInstall -and $ExtractProject) {
 
     $null = New-Item -ItemType Directory -Path $OutPath -Force
     Push-Location $OutPath
-    
+
     Write-Verbose -Message "Cloning dependency [$GitName] with git from [$($Target)]"
     Invoke-ExternalCommand git 'clone', $Name
 
@@ -212,7 +222,7 @@ if($Dependency.AddToPath)
 {
     Write-Verbose "Setting PSModulePath to`n$($Target, $env:PSModulePath -join ';' | Out-String)"
     Add-ToItemCollection -Reference Env:\PSModulePath -Item (Get-Item $Target).FullName
-    
+
     Write-Verbose "Setting PATH to`n$($RepoPath, $env:PATH -join ';' | Out-String)"
     Add-ToItemCollection -Reference Env:\Path -Item (Get-Item $Target).FullName
 }
